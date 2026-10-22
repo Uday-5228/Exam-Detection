@@ -1,0 +1,35 @@
+streams:
+  - id: cam1
+    name: "Hall A - Front"
+    source: "data/clips/hall_a.mp4"
+    loop: true
+  - id: cam2
+    name: "Hall B"
+    source: "data/clips/hall_b.mp4"
+    loop: true
+
+model:
+  detector: "yolov8n.pt"
+  pose: "yolov8n-pose.pt"
+  device: "auto"
+  imgsz: 640
+  conf: 0.35
+  keypoint_conf: 0.4
+  classes: [0, 67]
+  process_every_n_frames: 2
+
+rules:
+  peeking:
+    yaw_threshold_deg: 35
+    sustained_seconds: 3.0
+    repeat_turns_count: 3
+    repeat_window_seconds: 30
+  device_use:
+    min_conf: 0.35
+    sustained_seconds: 1.5
+  cooldown_seconds: 10
+
+output:
+  jpeg_quality: 70
+  stream_width: 640
+  annotated_video: "outputs/annotated.mp4"

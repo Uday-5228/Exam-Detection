@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+data/clips/*
+!data/clips/.gitkeep
+data/snapshots/*
+!data/snapshots/.gitkeep
+data/events.db*
+outputs/*
+!outputs/.gitkeep
+*.pt
+

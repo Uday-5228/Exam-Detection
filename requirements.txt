@@ -1,0 +1,9 @@
+ultralytics==8.3.221
+opencv-python==4.10.0.84
+numpy==1.26.4
+mediapipe==0.10.14
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+pydantic==2.11.4
+PyYAML==6.0.2
+pytest==8.3.5
