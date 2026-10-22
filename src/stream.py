@@ -37,8 +37,11 @@ class VideoSource:
             return self
         self._capture = self._open()
         if not self._capture.isOpened():
+            self._capture.release()
+            self._capture = None
             raise RuntimeError(f"Unable to open video source: {self.source}")
-        self._fps = self._capture.get(cv2.CAP_PROP_FPS) or 25.0
+        reported_fps = self._capture.get(cv2.CAP_PROP_FPS)
+        self._fps = reported_fps if reported_fps > 0 else 25.0
         self._thread = threading.Thread(target=self._capture_loop, name="video-capture", daemon=True)
         self._thread.start()
         return self
@@ -54,7 +57,16 @@ class VideoSource:
 
     def _capture_loop(self) -> None:
         """Publish captured frames and reconnect when a live source drops."""
+        playback_file = not self.source.isdigit() and not self.source.lower().startswith(
+            ("rtsp://", "http://", "https://")
+        )
+        next_file_frame_at = time.monotonic()
         while not self._stopped.is_set():
+            if playback_file and self.latest_only:
+                wait = next_file_frame_at - time.monotonic()
+                if wait > 0 and self._stopped.wait(wait):
+                    break
+                next_file_frame_at = max(next_file_frame_at + 1.0 / self._fps, time.monotonic())
             capture = self._capture
             if capture is None:
                 break
@@ -105,6 +117,11 @@ class VideoSource:
     def fps(self) -> float:
         """Return the source-reported frame rate when available."""
         return self._fps
+
+    @property
+    def capture_alive(self) -> bool:
+        """Report whether the capture worker is still running."""
+        return self._thread is not None and self._thread.is_alive()
 
     def stop(self) -> None:
         """Stop capture and release the underlying device."""

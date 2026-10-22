@@ -71,6 +71,7 @@ class OutputConfig:
     annotated_video: str
     snapshot_dir: str
     event_db: str
+    reconnect_seconds: float
 
 
 @dataclass(frozen=True)
@@ -168,9 +169,11 @@ def load(path: str | Path = "config.yaml") -> AppConfig:
     try:
         output_config = OutputConfig(int(output.get("jpeg_quality", 70)), int(output.get("stream_width", 640)),
                                      str(output["annotated_video"]), str(output["snapshot_dir"]),
-                                     str(output["event_db"]))
+                                     str(output["event_db"]), float(output.get("reconnect_seconds", 2.0)))
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError(f"Invalid 'output' configuration: {exc}") from exc
     if not 0 <= output_config.jpeg_quality <= 100 or output_config.stream_width <= 0:
         raise ValueError("output.jpeg_quality must be 0-100 and output.stream_width must be positive")
+    if output_config.reconnect_seconds <= 0:
+        raise ValueError("output.reconnect_seconds must be positive")
     return AppConfig(tuple(streams), model_config, rules_config, output_config, config_path)

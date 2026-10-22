@@ -37,3 +37,4 @@ output:
   annotated_video: "outputs/annotated.mp4"
   snapshot_dir: "data/snapshots"
   event_db: "data/events.db"
+  reconnect_seconds: 2.0

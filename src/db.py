@@ -72,3 +72,11 @@ def mark_reviewed(db_path: str | Path, event_id: str) -> bool:
     with sqlite3.connect(db_path) as connection:
         cursor = connection.execute("UPDATE events SET reviewed = 1 WHERE id = ?", (event_id,))
         return cursor.rowcount > 0
+
+
+def count_events_since(db_path: str | Path, timestamp: float) -> int:
+    """Count stored events at or after the supplied Unix timestamp."""
+    initialize(db_path)
+    with sqlite3.connect(db_path) as connection:
+        row = connection.execute("SELECT COUNT(*) FROM events WHERE timestamp >= ?", (timestamp,)).fetchone()
+    return int(row[0])
