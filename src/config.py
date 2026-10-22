@@ -41,6 +41,7 @@ class PeekingRuleConfig:
     sustained_seconds: float
     repeat_turns_count: int
     repeat_window_seconds: float
+    interruption_tolerance_seconds: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -49,6 +50,7 @@ class DeviceUseRuleConfig:
 
     min_conf: float
     sustained_seconds: float
+    person_bbox_expansion: float = 0.15
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,8 @@ class OutputConfig:
     jpeg_quality: int
     stream_width: int
     annotated_video: str
+    snapshot_dir: str
+    event_db: str
 
 
 @dataclass(frozen=True)
@@ -141,22 +145,30 @@ def load(path: str | Path = "config.yaml") -> AppConfig:
     try:
         rules_config = RulesConfig(
             peeking=PeekingRuleConfig(float(peeking["yaw_threshold_deg"]), float(peeking["sustained_seconds"]),
-                                      int(peeking["repeat_turns_count"]), float(peeking["repeat_window_seconds"])),
-            device_use=DeviceUseRuleConfig(float(device_use["min_conf"]), float(device_use["sustained_seconds"])),
+                                      int(peeking["repeat_turns_count"]), float(peeking["repeat_window_seconds"]),
+                                      float(peeking.get("interruption_tolerance_seconds", 0.5))),
+            device_use=DeviceUseRuleConfig(float(device_use["min_conf"]), float(device_use["sustained_seconds"]),
+                                           float(device_use.get("person_bbox_expansion", 0.15))),
             cooldown_seconds=float(rules["cooldown_seconds"]),
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError(f"Invalid 'rules' configuration: {exc}") from exc
     if not 0 < rules_config.device_use.min_conf <= 1:
         raise ValueError("rules.device_use.min_conf must be in (0, 1]")
+    if rules_config.device_use.person_bbox_expansion < 0:
+        raise ValueError("rules.device_use.person_bbox_expansion cannot be negative")
+    if rules_config.peeking.repeat_turns_count < 1:
+        raise ValueError("rules.peeking.repeat_turns_count must be positive")
     if min(rules_config.peeking.sustained_seconds, rules_config.peeking.repeat_window_seconds,
-           rules_config.device_use.sustained_seconds, rules_config.cooldown_seconds) < 0:
+           rules_config.device_use.sustained_seconds, rules_config.cooldown_seconds,
+           rules_config.peeking.interruption_tolerance_seconds) < 0:
         raise ValueError("Rule durations and cooldown_seconds cannot be negative")
 
     output = _section(raw, "output")
     try:
         output_config = OutputConfig(int(output.get("jpeg_quality", 70)), int(output.get("stream_width", 640)),
-                                     str(output["annotated_video"]))
+                                     str(output["annotated_video"]), str(output["snapshot_dir"]),
+                                     str(output["event_db"]))
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError(f"Invalid 'output' configuration: {exc}") from exc
     if not 0 <= output_config.jpeg_quality <= 100 or output_config.stream_width <= 0:

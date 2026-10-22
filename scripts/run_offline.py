@@ -9,8 +9,11 @@ from pathlib import Path
 import cv2
 
 from src.config import AppConfig, StreamConfig, load
+from src.alerts import AlertManager
+from src.db import initialize, insert_event
 from src.detector import Detection, Detector
 from src.pose import estimate_yaw
+from src.rules import RuleEngine
 from src.stream import VideoSource
 
 
@@ -45,8 +48,17 @@ def run(config: AppConfig, stream: StreamConfig, source: str | None, output: str
     if not output_path.is_absolute():
         output_path = config.config_path.parent / output_path
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    snapshot_dir = Path(config.output.snapshot_dir)
+    if not snapshot_dir.is_absolute():
+        snapshot_dir = config.config_path.parent / snapshot_dir
+    event_db_path = Path(config.output.event_db)
+    if not event_db_path.is_absolute():
+        event_db_path = config.config_path.parent / event_db_path
 
     detector = Detector(config.model)
+    rule_engine = RuleEngine(config.rules, config.model.keypoint_conf)
+    alert_manager = AlertManager(snapshot_dir, config.rules.cooldown_seconds, config.output.jpeg_quality)
+    initialize(event_db_path)
     processed = 0
     frame_index = 0
     last_sequence = 0
@@ -56,7 +68,7 @@ def run(config: AppConfig, stream: StreamConfig, source: str | None, output: str
     with VideoSource(actual_source, loop=False, latest_only=False) as video:
         try:
             while True:
-                frame, sequence, _captured_at = video.read(after_sequence=last_sequence, timeout=5.0)
+                frame, sequence, captured_at = video.read(after_sequence=last_sequence, timeout=5.0)
                 if frame is None:
                     break
                 last_sequence = sequence
@@ -64,6 +76,13 @@ def run(config: AppConfig, stream: StreamConfig, source: str | None, output: str
                     last_detections = detector.detect(frame)
                     processed += 1
                 annotated = _draw(frame, last_detections, config.model.keypoint_conf)
+                candidates = rule_engine.update(stream.id, last_detections, captured_at)
+                for candidate in candidates:
+                    alert = alert_manager.create(candidate, annotated)
+                    if alert is not None:
+                        insert_event(event_db_path, alert)
+                        print(f"{alert.type} [{alert.stream_id}] track {alert.track_id}: {alert.detail} "
+                              f"(snapshot: {alert.snapshot_path})")
                 if writer is None:
                     height, width = annotated.shape[:2]
                     fps = video.fps if video.fps > 0 else 25.0

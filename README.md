@@ -4,7 +4,7 @@ Prototype for reviewing suspicious activity in staged exam-hall video. Alerts ar
 
 ## Current implementation
 
-Phase 0 setup and the Phase 1 single-video pipeline are implemented. The project loads configuration from `config.yaml`, reads a file, RTSP stream, or webcam, runs pretrained YOLO person/phone detection and ByteTrack plus pose estimation, and writes an annotated video. Multi-stream serving, behavior alerts, persistence, and dashboard work belong to later phases.
+Phases 0 through 2 are implemented. The project loads configuration from `config.yaml`, reads a file, RTSP stream, or webcam, runs pretrained YOLO person/phone detection and ByteTrack plus pose estimation, estimates head turns, evaluates PEEKING and DEVICE_USE rules, saves cooldown-limited alert snapshots, and logs events in SQLite. The offline runner writes an annotated video. Multi-stream serving and the dashboard belong to later phases.
 
 ## Install
 
@@ -26,7 +26,7 @@ Check and print the parsed configuration:
 python -c "from src.config import load; print(load())"
 ```
 
-Run the first configured video and write `outputs/annotated.mp4`:
+Run the first configured video, write `outputs/annotated.mp4`, and save alert snapshots and events to the configured locations:
 
 ```powershell
 python scripts/run_offline.py
@@ -38,7 +38,7 @@ Choose a configured stream and/or override its input and output:
 python scripts/run_offline.py --stream cam1 --source data/clips/hall_a.mp4 --output outputs/hall_a_annotated.mp4
 ```
 
-The console reports processed-frame FPS. Boxes show person track IDs and class labels; visible pose keypoints are drawn for people.
+The console reports processed-frame FPS and any generated alerts. Boxes show person track IDs and class labels; visible pose keypoints are drawn for people. Alert text is neutral and describes suspicious activity for human review.
 
 ## Troubleshooting
 

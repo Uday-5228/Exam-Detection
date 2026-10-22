@@ -24,12 +24,16 @@ rules:
     sustained_seconds: 3.0
     repeat_turns_count: 3
     repeat_window_seconds: 30
+    interruption_tolerance_seconds: 0.5
   device_use:
     min_conf: 0.35
     sustained_seconds: 1.5
+    person_bbox_expansion: 0.15
   cooldown_seconds: 10
 
 output:
   jpeg_quality: 70
   stream_width: 640
   annotated_video: "outputs/annotated.mp4"
+  snapshot_dir: "data/snapshots"
+  event_db: "data/events.db"
