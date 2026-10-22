@@ -38,3 +38,14 @@ output:
   snapshot_dir: "data/snapshots"
   event_db: "data/events.db"
   reconnect_seconds: 2.0
+  metrics_report: "outputs/metrics_report.md"
+
+demo:
+  stream_ids: []
+  max_streams: 4
+  stream_width: 480
+  process_every_n_frames: 3
+  probe_frames: 30
+  target_fps: 30
+  fallback_fps: 25
+  recording_seconds: 120

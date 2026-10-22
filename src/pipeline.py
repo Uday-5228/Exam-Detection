@@ -109,15 +109,25 @@ class StreamWorker:
                 initialize(database)
                 self._set_status("online")
                 last_sequence = 0
+                last_frame_at = time.monotonic()
                 frame_index = 0
                 detections: list[Detection] = []
                 while not self._stop.is_set():
                     frame, sequence, captured_at = source.read(after_sequence=last_sequence, timeout=1.0)
                     if frame is None:
                         if not source.capture_alive:
+                            is_local_file = not self.stream.source.isdigit() and not self.stream.source.lower().startswith(
+                                ("rtsp://", "http://", "https://")
+                            )
+                            if is_local_file and not self.stream.loop:
+                                self._set_status("offline", "Clip ended")
+                                return
                             raise RuntimeError("Video source stopped")
                         self._set_status("offline", "Waiting for video frames")
+                        if time.monotonic() - last_frame_at >= self.config.output.reconnect_seconds:
+                            raise RuntimeError("No frames received; reconnecting")
                         continue
+                    last_frame_at = time.monotonic()
                     last_sequence = sequence
                     if frame.shape[1] > self.config.output.stream_width:
                         import cv2

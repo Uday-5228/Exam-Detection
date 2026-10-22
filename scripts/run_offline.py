@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import sys
 import time
 from pathlib import Path
 
-import cv2
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.config import AppConfig, StreamConfig, load
 from src.alerts import AlertManager
@@ -14,11 +16,12 @@ from src.db import initialize, insert_event
 from src.detector import Detection, Detector
 from src.pose import estimate_yaw
 from src.rules import RuleEngine
-from src.stream import VideoSource
 
 
 def _draw(frame: cv2.Mat, detections: list[Detection], keypoint_conf: float) -> cv2.Mat:
     """Draw object boxes, track labels, and available person keypoints."""
+    import cv2
+
     for detection in detections:
         x1, y1, x2, y2 = detection.bbox
         color = (40, 210, 70) if detection.cls == "person" else (40, 150, 255)
@@ -39,6 +42,11 @@ def _draw(frame: cv2.Mat, detections: list[Detection], keypoint_conf: float) -> 
 
 def run(config: AppConfig, stream: StreamConfig, source: str | None, output: str | None) -> None:
     """Process one configured source and save its annotated video."""
+    try:
+        import cv2
+    except ImportError as exc:
+        raise RuntimeError("opencv-python is required; install requirements.txt") from exc
+    from src.stream import VideoSource
     actual_source = source or stream.source
     if not actual_source.lower().startswith(("rtsp://", "http://", "https://")):
         source_path = Path(actual_source)

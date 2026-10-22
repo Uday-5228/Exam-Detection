@@ -72,6 +72,21 @@ class OutputConfig:
     snapshot_dir: str
     event_db: str
     reconnect_seconds: float
+    metrics_report: str
+
+
+@dataclass(frozen=True)
+class DemoConfig:
+    """Lower-cost settings used by the stable demo mode."""
+
+    stream_ids: tuple[str, ...]
+    max_streams: int
+    stream_width: int
+    process_every_n_frames: int
+    probe_frames: int
+    target_fps: float
+    fallback_fps: float
+    recording_seconds: int
 
 
 @dataclass(frozen=True)
@@ -82,6 +97,7 @@ class AppConfig:
     model: ModelConfig
     rules: RulesConfig
     output: OutputConfig
+    demo: DemoConfig
     config_path: Path
 
 
@@ -169,11 +185,37 @@ def load(path: str | Path = "config.yaml") -> AppConfig:
     try:
         output_config = OutputConfig(int(output.get("jpeg_quality", 70)), int(output.get("stream_width", 640)),
                                      str(output["annotated_video"]), str(output["snapshot_dir"]),
-                                     str(output["event_db"]), float(output.get("reconnect_seconds", 2.0)))
+                                     str(output["event_db"]), float(output.get("reconnect_seconds", 2.0)),
+                                     str(output.get("metrics_report", "outputs/metrics_report.md")))
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError(f"Invalid 'output' configuration: {exc}") from exc
     if not 0 <= output_config.jpeg_quality <= 100 or output_config.stream_width <= 0:
         raise ValueError("output.jpeg_quality must be 0-100 and output.stream_width must be positive")
     if output_config.reconnect_seconds <= 0:
         raise ValueError("output.reconnect_seconds must be positive")
-    return AppConfig(tuple(streams), model_config, rules_config, output_config, config_path)
+    demo = raw.get("demo", {})
+    if not isinstance(demo, dict):
+        raise ValueError("Configuration section 'demo' must be a mapping")
+    if not isinstance(demo.get("stream_ids", []), list):
+        raise ValueError("demo.stream_ids must be a list")
+    try:
+        demo_config = DemoConfig(
+            stream_ids=tuple(str(value) for value in demo.get("stream_ids", [])),
+            max_streams=int(demo.get("max_streams", 4)),
+            stream_width=int(demo.get("stream_width", 480)),
+            process_every_n_frames=int(demo.get("process_every_n_frames", 3)),
+            probe_frames=int(demo.get("probe_frames", 30)),
+            target_fps=float(demo.get("target_fps", 30)),
+            fallback_fps=float(demo.get("fallback_fps", 25)),
+            recording_seconds=int(demo.get("recording_seconds", 120)),
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid 'demo' configuration: {exc}") from exc
+    if min(demo_config.max_streams, demo_config.stream_width, demo_config.process_every_n_frames,
+           demo_config.probe_frames, demo_config.target_fps, demo_config.fallback_fps,
+           demo_config.recording_seconds) <= 0:
+        raise ValueError("demo max_streams, stream_width, process_every_n_frames, and probe_frames must be positive")
+    unknown_demo_streams = set(demo_config.stream_ids) - ids
+    if unknown_demo_streams:
+        raise ValueError(f"demo.stream_ids contains unknown ids: {', '.join(sorted(unknown_demo_streams))}")
+    return AppConfig(tuple(streams), model_config, rules_config, output_config, demo_config, config_path)
