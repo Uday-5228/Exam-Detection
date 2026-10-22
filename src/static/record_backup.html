@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10171f">
+  <title>Record demo backup</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .record-page { display: grid; min-height: 100vh; place-items: center; padding: 24px; }
+    .record-card { width: min(100%, 600px); padding: 28px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); }
+    .record-card p { margin-top: 12px; color: var(--muted); }
+    .record-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+    .record-actions button, .record-actions a { min-height: 44px; padding: 10px 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-raised); color: var(--text); font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+    .record-actions button:disabled { opacity: .5; cursor: not-allowed; }
+    #record-status { min-height: 28px; margin-top: 18px; color: var(--teal); font-weight: 700; }
+    #record-status.error { color: var(--red); }
+  </style>
+</head>
+<body>
+  <main class="record-page">
+    <section class="record-card">
+      <p class="eyebrow">DEMO PREPARATION</p>
+      <h1>Record a dashboard backup</h1>
+      <p>Start the recording, choose the dashboard tab in the browser’s screen-share picker, and keep it visible. The browser will download a WebM backup when the configured recording duration is complete.</p>
+      <div class="record-actions">
+        <button id="start-recording" type="button">Start recording</button>
+        <button id="stop-recording" type="button" disabled>Stop and save now</button>
+        <a href="/" target="_blank" rel="noopener">Open dashboard</a>
+      </div>
+      <p id="record-status" role="status" aria-live="polite">Ready. Screen sharing starts only after you approve it.</p>
+    </section>
+  </main>
+  <script>
+    "use strict";
+    const startButton = document.getElementById("start-recording");
+    const stopButton = document.getElementById("stop-recording");
+    const statusText = document.getElementById("record-status");
+    let recorder = null;
+    let displayStream = null;
+    let chunks = [];
+    let stopTimer = null;
+    let recordingSeconds = 0;
+
+    function setStatus(text, isError = false) {
+      statusText.textContent = text;
+      statusText.classList.toggle("error", isError);
+    }
+
+    function finishRecording() {
+      if (recorder && recorder.state !== "inactive") recorder.stop();
+    }
+
+    startButton.addEventListener("click", async () => {
+      if (!navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder) {
+        setStatus("This browser does not support screen recording.", true);
+        return;
+      }
+      startButton.disabled = true;
+      try {
+        const settingsResponse = await fetch("/api/demo-settings", { cache: "no-store" });
+        if (!settingsResponse.ok) throw new Error("Recording settings are unavailable");
+        recordingSeconds = Number((await settingsResponse.json()).recording_seconds);
+        displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]
+          .find((candidate) => MediaRecorder.isTypeSupported(candidate));
+        recorder = new MediaRecorder(displayStream, mimeType ? { mimeType } : undefined);
+        chunks = [];
+        recorder.addEventListener("dataavailable", (event) => {
+          if (event.data.size > 0) chunks.push(event.data);
+        });
+        recorder.addEventListener("stop", () => {
+          window.clearTimeout(stopTimer);
+          for (const track of displayStream.getTracks()) track.stop();
+          const blob = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `exam_activity_backup_${new Date().toISOString().replaceAll(":", "-")}.webm`;
+          link.click();
+          window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+          setStatus("Backup saved by the browser. Move it into outputs/ for the demo handoff.");
+          startButton.disabled = false;
+          stopButton.disabled = true;
+        }, { once: true });
+        displayStream.getVideoTracks()[0].addEventListener("ended", finishRecording, { once: true });
+        recorder.start();
+        stopButton.disabled = false;
+        setStatus(`Recording. Keep the selected dashboard tab visible for ${recordingSeconds} seconds.`);
+        stopTimer = window.setTimeout(finishRecording, recordingSeconds * 1000);
+      } catch (error) {
+        startButton.disabled = false;
+        stopButton.disabled = true;
+        setStatus("Screen sharing was not started. Choose a tab and approve screen sharing to continue.", true);
+      }
+    });
+
+    stopButton.addEventListener("click", finishRecording);
+  </script>
+</body>
+</html>

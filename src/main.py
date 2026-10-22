@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import argparse
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,7 @@ from starlette.concurrency import run_in_threadpool
 
 from src.config import AppConfig, load
 from src.db import count_events_since, list_events, mark_reviewed
+from src.demo import select_demo_config
 from src.pipeline import PipelineManager
 
 STATIC_DIR = Path(__file__).with_name("static")
@@ -179,6 +181,11 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         )
         return metrics
 
+    @application.get("/api/demo-settings")
+    async def get_demo_settings() -> dict[str, int]:
+        """Return configured demo capture settings for the backup recorder."""
+        return {"recording_seconds": app_config.demo.recording_seconds}
+
     @application.get("/snapshots/{filename}")
     async def get_snapshot(filename: str) -> FileResponse:
         """Serve a saved alert JPEG by its filename."""
@@ -198,4 +205,15 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("src.main:app", host="127.0.0.1", port=8000)
+    parser = argparse.ArgumentParser(description="Run the exam activity dashboard")
+    parser.add_argument("--config", default="config.yaml", help="YAML configuration path")
+    parser.add_argument("--demo", action="store_true", help="Select readable clips and use stable lower-cost settings")
+    arguments = parser.parse_args()
+    selected_config = load(arguments.config)
+    if arguments.demo:
+        try:
+            selected_config = select_demo_config(selected_config)
+        except (FileNotFoundError, RuntimeError) as exc:
+            parser.error(str(exc))
+        print("Demo streams: " + ", ".join(stream.id for stream in selected_config.streams))
+    uvicorn.run(create_app(selected_config), host="127.0.0.1", port=8000)
