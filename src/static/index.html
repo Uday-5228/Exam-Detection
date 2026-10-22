@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10171f">
+  <title>Exam Activity Monitor</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">◎</div>
+      <div><h1>Exam Activity Monitor</h1><p>Live invigilator support</p></div>
+    </div>
+    <div class="metrics" aria-label="Live system metrics">
+      <div class="metric"><span class="metric-label">Streams online</span><strong id="online-count">—</strong></div>
+      <div class="metric"><span class="metric-label">Suspicious activity today</span><strong id="alert-count">0</strong></div>
+      <div class="metric"><span class="metric-label">Average latency</span><strong id="latency-value">—</strong></div>
+    </div>
+  </header>
+
+  <main>
+    <div class="live-layout">
+      <section class="feeds-section" aria-labelledby="feeds-title">
+        <div class="section-heading"><div><p class="eyebrow">LIVE MONITORING</p><h2 id="feeds-title">Camera feeds</h2></div><span id="feed-summary" class="subtle">Connecting…</span></div>
+        <div id="feed-grid" class="feed-grid" aria-live="polite"></div>
+      </section>
+
+      <aside class="alerts-panel" aria-labelledby="alerts-title">
+        <div class="section-heading"><div><p class="eyebrow">FOR HUMAN REVIEW</p><h2 id="alerts-title">Live alerts</h2></div><span id="live-indicator" class="live-indicator"><i></i> LIVE</span></div>
+        <div id="live-alerts" class="live-alerts" aria-live="polite"><div class="empty-state">Waiting for suspicious activity alerts.</div></div>
+      </aside>
+    </div>
+
+    <section class="event-section" aria-labelledby="events-title">
+      <div class="section-heading event-heading">
+        <div><p class="eyebrow">RECENT ACTIVITY</p><h2 id="events-title">Event log</h2></div>
+        <div class="filters">
+          <label>Camera<select id="camera-filter"><option value="">All cameras</option></select></label>
+          <label>Activity<select id="type-filter"><option value="">All activity</option><option value="PEEKING">PEEKING</option><option value="DEVICE_USE">DEVICE_USE</option><option value="NOTE_PASSING">NOTE_PASSING</option></select></label>
+          <button id="refresh-events" class="secondary-button" type="button">Refresh</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Camera</th><th>Activity</th><th>Reason</th><th>Review</th></tr></thead>
+          <tbody id="event-rows"><tr><td colspan="5" class="empty-cell">Loading events…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="snapshot-modal" class="snapshot-modal" aria-label="Alert snapshot">
+    <button id="close-modal" class="close-modal" type="button" aria-label="Close snapshot">×</button>
+    <img id="modal-image" alt="Saved alert snapshot">
+    <p id="modal-caption"></p>
+  </dialog>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

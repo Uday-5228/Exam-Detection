@@ -4,7 +4,7 @@ Prototype for reviewing suspicious activity in staged exam-hall video. Alerts ar
 
 ## Current implementation
 
-Phases 0 through 2 are implemented. The project loads configuration from `config.yaml`, reads a file, RTSP stream, or webcam, runs pretrained YOLO person/phone detection and ByteTrack plus pose estimation, estimates head turns, evaluates PEEKING and DEVICE_USE rules, saves cooldown-limited alert snapshots, and logs events in SQLite. The offline runner writes an annotated video. Multi-stream serving and the dashboard belong to later phases.
+Phases 0 through 4 are implemented. The project loads configuration from `config.yaml`, reads file, RTSP, or webcam sources, runs pretrained YOLO person/phone detection and ByteTrack plus pose estimation, evaluates PEEKING and DEVICE_USE rules, saves cooldown-limited snapshots and SQLite events, and serves a live monitoring dashboard through FastAPI. The UI includes a responsive feed grid, real-time alerts, event filters, review controls, and live performance summaries.
 
 ## Install
 
@@ -39,6 +39,14 @@ python scripts/run_offline.py --stream cam1 --source data/clips/hall_a.mp4 --out
 ```
 
 The console reports processed-frame FPS and any generated alerts. Boxes show person track IDs and class labels; visible pose keypoints are drawn for people. Alert text is neutral and describes suspicious activity for human review.
+
+Run the multi-stream dashboard from the project root:
+
+```powershell
+python -m src.main
+```
+
+Then open `http://127.0.0.1:8000`. The server binds to localhost so camera feeds, snapshots, and event data are not exposed on other network interfaces by default. Configure each feed in `config.yaml`; file sources loop according to their `loop` setting, while RTSP sources reconnect after interruptions.
 
 ## Troubleshooting
 
